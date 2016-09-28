@@ -63,8 +63,8 @@ final class FacebookAction
                     ),
                     'name' => $fb_data_fanpage->name,
                     'midia' => array(
-                        'picture' => 'http://' . $_SERVER['HTTP_HOST'] . '/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->picture->data->url))->checkHashFile(),
-                        'cover' => 'http://' . $_SERVER['HTTP_HOST'] . '/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->cover->source))->checkHashFile()
+                        'picture' => 'http://' . $_SERVER['HTTP_HOST'] . '/facebook/v2/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->picture->data->url))->checkHashFile(),
+                        'cover' => 'http://' . $_SERVER['HTTP_HOST'] . '/facebook/v2/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->cover->source))->checkHashFile()
                     )
                 ),
                 'itens' => array()

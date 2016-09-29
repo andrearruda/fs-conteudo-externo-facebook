@@ -45,7 +45,7 @@ final class FacebookAction
             ]);
 
             $batch = [
-                $fb->request('GET', '/' . $this->getUsername() . '?fields=id, name, picture.type(large), cover'),
+                $fb->request('GET', '/' . $this->getUsername() . '?fields=id, name, engagement, company_overview, mission, picture.type(large){url}, cover.type(large){id, source}'),
                 $fb->request('GET', '/' . $this->getUsername() . '/posts?limit=' . $this->getLength() . '&fields=id, object_id, type, created_time, updated_time, name, message, shares, source, attachments{media{image{src}}, target}, likes.limit(5).summary(true){name, picture.type(large){url}}, reactions.limit(5).summary(total_count){name, picture.type(large){url}}, comments.limit(5).summary(true){from{name, picture.type(large){url}}, message}'),
             ];
 
@@ -55,16 +55,37 @@ final class FacebookAction
             $fb_data_fanpage = json_decode($fb_batch_response->getGraphNode()->getField(0)->getField('body'));
             $fb_data_posts = json_decode($fb_batch_response->getGraphNode()->getField(1)->getField('body'));
 
+            //IMAGE PAGE
+            $img_page_cover_name = $fb_data_fanpage->cover->id . '.jpg';
+            $img_page_cover_path = __DIR__ . '/../../../data/uploads/' . $img_page_cover_name;
+            if(!file_exists($img_page_cover_path))
+            {
+                $content = file_get_contents(str_replace('https://', 'http://', $fb_data_fanpage->cover->source));
+                file_put_contents($img_page_cover_path, $content);
+            }
+
             $data = array(
                 'info' => array(
-                    'id' => $fb_data_fanpage->id,
                     'date' => array(
                         'created' => date('Y-m-d H:i:s'),
                     ),
+                    'id' => $fb_data_fanpage->id,
                     'name' => $fb_data_fanpage->name,
+                    'engagement' => array(
+                        'count' => $fb_data_fanpage->engagement->count,
+                        'sentence' => explode(' ', $fb_data_fanpage->engagement->social_sentence)[0]
+                    ),
+                    'overview' => array(
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($fb_data_fanpage->company_overview)->safeTruncate(250, '...')),
+                        'full' => $fb_data_fanpage->company_overview
+                    ),
+                    'mission' => array(
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($fb_data_fanpage->mission)->safeTruncate(250, '...')),
+                        'full' => $fb_data_fanpage->mission
+                    ),
                     'midia' => array(
                         'picture' => 'http://' . $_SERVER['HTTP_HOST'] . '/facebook/v2/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->picture->data->url))->checkHashFile(),
-                        'cover' => 'http://' . $_SERVER['HTTP_HOST'] . '/facebook/v2/data/uploads/' . (new CheckHashCachedFile($fb_data_fanpage->cover->source))->checkHashFile()
+                        'cover' => 'http://' . $_SERVER['HTTP_HOST'] . '/facebook/v2/data/uploads/' . $img_page_cover_name
                     )
                 ),
                 'itens' => array()
@@ -78,6 +99,18 @@ final class FacebookAction
                 $updated = new \DateTime(date('Y-m-d H:i:s', strtotime($item->updated_time)));
                 $updated->setTimezone(new \DateTimeZone('America/Sao_paulo'));
 
+                if($item->type == 'link')
+                {
+                    $url = parse_url($item->attachments->data[0]->media->image->src);
+                    parse_str($url['query'], $query);
+
+                    $image = isset($query['url']) ? $query['url'] : $item->attachments->data[0]->media->image->src;
+                }
+                else
+                {
+                    $image = $item->attachments->data[0]->media->image->src;
+                }
+
                 $data['itens'][$i] = array(
                     'id' => $item->id,
                     'type' => $item->type,
@@ -85,28 +118,36 @@ final class FacebookAction
                         'created' => $created->format('Y-m-d H:i:s'),
                         'updated' => $updated->format('Y-m-d H:i:s')
                     ),
-                    'message' => str_replace("\n", ' ', (string) Stringy::create($item->message)->safeTruncate(250, '...')),
+                    'message' => array(
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($item->message)->safeTruncate(250, '...')),
+                        'full' => $item->message
+                    ),
                     'midia' => array(
-                        'image' => $item->attachments->data[0]->media->image->src,
+                        'image' => $image,
                         'video' => $item->type == 'video' ? $item->source : ''
                     ),
-                    'likes' => array(
-                        'total' => $item->likes->summary->total_count,
-                        'users' => ''
-                    ),
-                    'reactions' => array(
-                        'total' => $item->reactions->summary->total_count,
-                        'users' => ''
-                    ),
-                    'comments' => array(
-                        'total' => $item->comments->summary->total_count,
-                        'users' => ''
+                    'engagement' => array(
+                        'shares' => array(
+                            'total' => $item->shares->count,
+                        ),
+                        'likes' => array(
+                            'total' => $item->likes->summary->total_count,
+                            'users' => ''
+                        ),
+                        'reactions' => array(
+                            'total' => $item->reactions->summary->total_count,
+                            'users' => ''
+                        ),
+                        'comments' => array(
+                            'total' => $item->comments->summary->total_count,
+                            'users' => ''
+                        ),
                     ),
                 );
 
                 foreach($item->likes->data as $user)
                 {
-                    $data['itens'][$i]['likes']['users'][] = array(
+                    $data['itens'][$i]['engagement']['likes']['users'][] = array(
                         'name' => $user->name,
                         'picture' => $user->picture->data->url
                     );
@@ -114,7 +155,7 @@ final class FacebookAction
 
                 foreach($item->reactions->data as $user)
                 {
-                    $data['itens'][$i]['reactions']['users'][] = array(
+                    $data['itens'][$i]['engagement']['reactions']['users'][] = array(
                         'name' => $user->name,
                         'picture' => $user->picture->data->url
                     );
@@ -122,10 +163,13 @@ final class FacebookAction
 
                 foreach($item->comments->data as $user)
                 {
-                    $data['itens'][$i]['comments']['users'][] = array(
+                    $data['itens'][$i]['engagement']['comments']['users'][] = array(
                         'name' => $user->from->name,
                         'picture' => $user->from->picture->data->url,
-                        'message' => str_replace("\n", ' ', (string) Stringy::create($user->message)->safeTruncate(250, '...'))
+                        'message' => array(
+                            'cut' => str_replace("\n", ' ', (string) Stringy::create($user->message)->safeTruncate(250, '...')),
+                            'full' => $user->message
+                        )
                     );
                 }
             }

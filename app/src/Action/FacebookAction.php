@@ -99,7 +99,7 @@ final class FacebookAction
                 $updated = new \DateTime(date('Y-m-d H:i:s', strtotime($item->updated_time)));
                 $updated->setTimezone(new \DateTimeZone('America/Sao_paulo'));
 
-                if($item->type == 'link')
+                if($item->type == 'link' || $item->type == 'status')
                 {
                     $url = parse_url($item->attachments->data[0]->media->image->src);
                     parse_str($url['query'], $query);

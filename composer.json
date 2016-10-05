@@ -23,6 +23,7 @@
         "jdorn/file-system-cache": "dev-master",
         "nesbot/carbon": "^1.21",
         "danielstjules/stringy": "~2.3",
-        "facebook/graph-sdk": "^5.3"
+        "facebook/graph-sdk": "^5.3",
+        "ralouphie/mimey": "^1.0"
     }
 }

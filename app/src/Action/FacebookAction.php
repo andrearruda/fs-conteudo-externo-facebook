@@ -148,7 +148,7 @@ final class FacebookAction
                         'full' => $item->message
                     ),
                     'midia' => array(
-                        'image' => $this->getPaths()['upload_path_virtual'] . $cache_file->file,
+                       'image' => $this->getPaths()['upload_path_virtual'] . $cache_file->file,
                         'video' => $item->type == 'video' ? $item->source : ''
                     ),
                     'engagement' => array(

@@ -223,7 +223,7 @@ final class FacebookAction
     public function login()
     {
         $helper = $this->getFb()->getRedirectLoginHelper();
-        $loginUrl = $helper->getLoginUrl($this->getPaths()['host'] . '/facebook/callback', array());
+        $loginUrl = $helper->getLoginUrl($this->getPaths()['host'] . 'facebook/callback', array());
         echo '<a href="' . htmlspecialchars($loginUrl) . '">Log in with Facebook!</a>';
     }
 

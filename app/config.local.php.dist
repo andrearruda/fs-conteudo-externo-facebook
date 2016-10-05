@@ -6,6 +6,7 @@ return [
         'default_graph_version' => 'v2.7'
     ],
     'paths' => [
-        'host' => 'http://localhost:8888'
+        'host' => '',
+        'upload_path_virtual' => '',
     ]
 ];

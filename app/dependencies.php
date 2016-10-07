@@ -30,7 +30,3 @@ $container['paths'] = function ($c) {
 $container[App\Action\FacebookAction::class] = function ($c) {
     return new App\Action\FacebookAction($c->get('facebook'), $c->get('paths'));
 };
-
-$container[App\Action\HomeAction::class] = function ($c) {
-    return new App\Action\HomeAction($c->get('facebook'));
-};

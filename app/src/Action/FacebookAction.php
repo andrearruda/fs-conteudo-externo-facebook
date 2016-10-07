@@ -5,8 +5,6 @@ namespace App\Action;
 use Slim\Http\Request,
     Slim\Http\Response;
 
-use App\Service\CheckHashCachedFile;
-
 use Facebook;
 use Stringy\Stringy;
 

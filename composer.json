@@ -18,12 +18,9 @@
     },
     "require": {
         "slim/slim": "^3.0",
-        "electrolinux/phpquery": "*",
         "thapp/xmlbuilder": "^0.1.4",
         "jdorn/file-system-cache": "dev-master",
-        "nesbot/carbon": "^1.21",
         "danielstjules/stringy": "~2.3",
-        "facebook/graph-sdk": "^5.3",
-        "ralouphie/mimey": "^1.0"
+        "facebook/graph-sdk": "^5.3"
     }
 }

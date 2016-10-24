@@ -51,8 +51,8 @@ final class FacebookAction
             $fb->setDefaultAccessToken($accessToken->token);
 
             $batch = [
-                $fb->request('GET', '/' . $this->getUserId() . '?fields=id, name, engagement, company_overview, mission, picture.type(large){url}, cover.type(large){id, source}'),
-                $fb->request('GET', '/' . $this->getUserId() . '/posts?limit=' . $this->getLength() . '&fields=id, object_id, type, created_time, updated_time, name, message, shares, source, attachments{media{image{src}}, target}, likes.limit(5).summary(true){name, picture.type(small){url}}, reactions.limit(5).summary(total_count){name, picture.type(small){url}}, comments.limit(5).summary(true){from{name, picture.type(small){url}}, message}'),
+                $fb->request('GET', '/' . $this->getUserId() . '?fields=id, username, name, engagement, company_overview, mission, picture.type(large){url}, cover.type(large){id, source}'),
+                $fb->request('GET', '/' . $this->getUserId() . '/posts?limit=' . $this->getLength() . '&fields=id, object_id, type, created_time, updated_time, name, message, shares, source, attachments{media{image{src}}, target}, reactions.limit(3).summary(total_count){name, type, picture.type(large){url}}'),
             ];
 
             /** @var $fb_batch_response /Facebook\FacebookBatchResponse */
@@ -86,20 +86,27 @@ final class FacebookAction
                 file_put_contents($img_page_picture_path, $content);
             }
 
+            $overview = isset($fb_data_fanpage->company_overview) ? $fb_data_fanpage->company_overview : '';
+            $mission = isset($fb_data_fanpage->mission) ? $fb_data_fanpage->mission : '';
+
             $data = array(
                 'info' => array(
+                    'date' => array(
+                        'created' => date('Y-m-d H:i:s')
+                    ),
                     'name' => $fb_data_fanpage->name,
+                    'username' => $fb_data_fanpage->username,
                     'engagement' => array(
                         'count' => $fb_data_fanpage->engagement->count,
                         'sentence' => explode(' ', $fb_data_fanpage->engagement->social_sentence)[0]
                     ),
                     'overview' => array(
-                        'cut' => str_replace("\n", ' ', (string) Stringy::create($fb_data_fanpage->company_overview)->safeTruncate(250, '...')),
-                        'full' => $fb_data_fanpage->company_overview
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($overview)->safeTruncate(250, '...')),
+                        'full' => str_replace("\n", ' ', $overview)
                     ),
                     'mission' => array(
-                        'cut' => str_replace("\n", ' ', (string) Stringy::create($fb_data_fanpage->mission)->safeTruncate(250, '...')),
-                        'full' => $fb_data_fanpage->mission
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($mission)->safeTruncate(250, '...')),
+                        'full' => str_replace("\n", ' ', $mission)
                     ),
                     'midia' => array(
                         'cover' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_page_cover_name,
@@ -139,6 +146,8 @@ final class FacebookAction
                     }
                 }
 
+                $message = isset($item->message) ? $item->message : '';
+
                 $data['feeds'][$i] = array(
                     'id' => $item->id,
                     'type' => $item->type,
@@ -147,48 +156,23 @@ final class FacebookAction
                         'updated' => $updated->format('Y-m-d H:i:s')
                     ),
                     'message' => array(
-                        'cut' => str_replace("\n", ' ', (string) Stringy::create($item->message)->safeTruncate(250, '...')),
-                        'full' => $item->message
+                        'cut' => str_replace("\n", ' ', (string) Stringy::create($message)->safeTruncate(250, '...')),
+                        'full' => $message
                     ),
                     'midia' => array(
                        'image' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_name,
-                        'video' => $item->type == 'video' ? $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $video_feed_name : ''
+                       'video' => $item->type == 'video' ? $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $video_feed_name : ''
                     ),
                     'engagement' => array(
                         'shares' => array(
-                            'total' => $item->shares->count,
-                        ),
-                        'likes' => array(
-                            'total' => $item->likes->summary->total_count,
-                            'users' => ''
+                            'total' => isset($item->shares->count) ? $item->shares->count : '0',
                         ),
                         'reactions' => array(
                             'total' => $item->reactions->summary->total_count,
                             'users' => ''
                         ),
-                        'comments' => array(
-                            'total' => $item->comments->summary->total_count,
-                            'users' => ''
-                        ),
                     ),
                 );
-
-                foreach($item->likes->data as $user)
-                {
-                    //IMAGE FEED ENGAGEMENT
-                    $img_feed_engagement_name = 'feed_engagement_' . sha1($user->picture->data->url) . '.jpg';
-                    $img_feed_engagement_path = $path_uploads . $img_feed_engagement_name;
-                    if(!file_exists($img_feed_engagement_path))
-                    {
-                        $content = file_get_contents(str_replace('https://', 'http://', $user->picture->data->url));
-                        file_put_contents($img_feed_engagement_path, $content);
-                    }
-
-                    $data['feeds'][$i]['engagement']['likes']['users'][] = array(
-                        'name' => $user->name,
-                        'picture' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_engagement_name
-                    );
-                }
 
                 foreach($item->reactions->data as $user)
                 {
@@ -203,28 +187,8 @@ final class FacebookAction
 
                     $data['feeds'][$i]['engagement']['reactions']['users'][] = array(
                         'name' => $user->name,
-                        'picture' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_engagement_name
-                    );
-                }
-
-                foreach($item->comments->data as $user)
-                {
-                    //IMAGE FEED ENGAGEMENT
-                    $img_feed_engagement_name = 'feed_engagement_' . sha1($user->from->picture->data->url) . '.jpg';
-                    $img_feed_engagement_path = $path_uploads . $img_feed_engagement_name;
-                    if(!file_exists($img_feed_engagement_path))
-                    {
-                        $content = file_get_contents(str_replace('https://', 'http://', $user->from->picture->data->url));
-                        file_put_contents($img_feed_engagement_path, $content);
-                    }
-
-                    $data['feeds'][$i]['engagement']['comments']['users'][] = array(
-                        'name' => $user->from->name,
                         'picture' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_engagement_name,
-                        'message' => array(
-                            'cut' => str_replace("\n", ' ', (string) Stringy::create($user->message)->safeTruncate(250, '...')),
-                            'full' => $user->message
-                        )
+                        'type' => $user->type
                     );
                 }
             }

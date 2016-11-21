@@ -2,6 +2,7 @@
 
 namespace App\Action;
 
+use Eventviva\ImageResize;
 use Slim\Http\Request,
     Slim\Http\Response;
 
@@ -68,22 +69,45 @@ final class FacebookAction
                 mkdir($path_uploads);
             }
 
+            //CLEAR IMAGE
+            $files = scandir($path_uploads);
+            foreach ($files as $file)
+            {
+                $file_path = $path_uploads . $file;
+                if(is_file($file_path))
+                {
+                    $current_date = (new \DateTime('-10 days'));
+                    $file_date = (new \DateTime())->setTimestamp(filemtime($file_path));
+
+                    if($file_date < $current_date)
+                    {
+                        unlink($file_path);
+                    }
+                }
+            }
+
             //IMAGE PAGE COVER
-            $img_page_cover_name = 'profile_cover_' . sha1($fb_data_fanpage->cover->source) . '.jpg';
+            $img_page_cover_name = 'cover_' . sha1($fb_data_fanpage->cover->source) . '.jpg';
             $img_page_cover_path = $path_uploads . $img_page_cover_name;
             if(!file_exists($img_page_cover_path))
             {
-                $content = file_get_contents(str_replace('https://', 'http://', $fb_data_fanpage->cover->source));
-                file_put_contents($img_page_cover_path, $content);
+                $content = file_get_contents($fb_data_fanpage->cover->source);
+
+                $image = ImageResize::createFromString($content);
+                $image->quality_jpg = 60;
+                $image->save($img_page_cover_path);
             }
 
             //IMAGE PAGE PICTURE
-            $img_page_picture_name = 'profile_picture_' . sha1($fb_data_fanpage->picture->data->url) . '.jpg';
+            $img_page_picture_name = 'picture_' . sha1($fb_data_fanpage->picture->data->url) . '.jpg';
             $img_page_picture_path = $path_uploads . $img_page_picture_name;
             if(!file_exists($img_page_picture_path))
             {
-                $content = file_get_contents(str_replace('https://', 'http://', $fb_data_fanpage->picture->data->url));
-                file_put_contents($img_page_picture_path, $content);
+                $content = file_get_contents($fb_data_fanpage->picture->data->url);
+
+                $image = ImageResize::createFromString($content);
+                $image->quality_jpg = 60;
+                $image->save($img_page_picture_path);
             }
 
             $overview = isset($fb_data_fanpage->company_overview) ? $fb_data_fanpage->company_overview : '';
@@ -116,7 +140,6 @@ final class FacebookAction
                 'feeds' => array()
             );
 
-
             foreach($fb_data_posts->data as $i => $item)
             {
                 $created = new \DateTime(date('Y-m-d H:i:s', strtotime($item->created_time)));
@@ -126,22 +149,26 @@ final class FacebookAction
                 $updated->setTimezone(new \DateTimeZone('America/Sao_paulo'));
 
                 //IMAGE FEED
-                $img_feed_name = 'feed_image_' . sha1($item->attachments->data[0]->media->image->src) . '.jpg';
+                $img_feed_name = 'feed_' . sha1($item->attachments->data[0]->media->image->src) . '.jpg';
                 $img_feed_path = $path_uploads . $img_feed_name;
                 if(!file_exists($img_feed_path))
                 {
-                    $content = file_get_contents(str_replace('https://', 'http://', $item->attachments->data[0]->media->image->src));
-                    file_put_contents($img_feed_path, $content);
+                    $content = file_get_contents($item->attachments->data[0]->media->image->src);
+
+                    $image = ImageResize::createFromString($content);
+                    $image->quality_jpg = 60;
+                    $image->resizeToBestFit(480, 480);
+                    $image->save($img_feed_path);
                 }
 
                 //VIDEO FEED
                 if($item->type == 'video')
                 {
-                    $video_feed_name = 'feed_video_' . sha1($item->attachments->data[0]->media->image->src) . '.mp4';
+                    $video_feed_name = 'feed_' . sha1($item->source) . '.mp4';
                     $video_feed_path = $path_uploads . $video_feed_name;
                     if(!file_exists($video_feed_path))
                     {
-                        $content = file_get_contents(str_replace('https://', 'http://', $item->source));
+                        $content = file_get_contents($item->source);
                         file_put_contents($video_feed_path, $content);
                     }
                 }
@@ -177,12 +204,16 @@ final class FacebookAction
                 foreach($item->reactions->data as $user)
                 {
                     //IMAGE FEED ENGAGEMENT
-                    $img_feed_engagement_name = 'feed_engagement_' . sha1($user->picture->data->url) . '.jpg';
+                    $img_feed_engagement_name = 'engagement_' . sha1($user->picture->data->url) . '.jpg';
                     $img_feed_engagement_path = $path_uploads . $img_feed_engagement_name;
                     if(!file_exists($img_feed_engagement_path))
                     {
-                        $content = file_get_contents(str_replace('https://', 'http://', $user->picture->data->url));
-                        file_put_contents($img_feed_engagement_path, $content);
+                        $content = file_get_contents($user->picture->data->url);
+
+                        $image = ImageResize::createFromString($content);
+                        $image->quality_jpg = 60;
+                        $image->resizeToBestFit(200, 200);
+                        $image->save($img_feed_engagement_path);
                     }
 
                     $data['feeds'][$i]['engagement']['reactions']['users'][] = array(

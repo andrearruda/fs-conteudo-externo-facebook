@@ -21,6 +21,7 @@
         "thapp/xmlbuilder": "^0.1.4",
         "jdorn/file-system-cache": "dev-master",
         "danielstjules/stringy": "~2.3",
-        "facebook/graph-sdk": "^5.3"
+        "facebook/graph-sdk": "^5.3",
+        "eventviva/php-image-resize": "^1.6"
     }
 }

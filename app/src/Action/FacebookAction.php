@@ -148,28 +148,67 @@ final class FacebookAction
                 $updated = new \DateTime(date('Y-m-d H:i:s', strtotime($item->updated_time)));
                 $updated->setTimezone(new \DateTimeZone('America/Sao_paulo'));
 
+                //VIDEO FEED
+                if($item->type == 'video')
+                {
+                    if(preg_match("#^https?://(?:www\.)?youtube.com#", $item->source))
+                    {
+                        $fb_data_posts->data[$i]->type = 'photo';
+                    }
+                    else
+                    {
+                        $video_feed_name = 'feed_' . sha1($item->source) . '.mp4';
+                        $video_feed_path = $path_uploads . $video_feed_name;
+                        if(!file_exists($video_feed_path))
+                        {
+                            $content = file_get_contents($item->source);
+                            file_put_contents($video_feed_path, $content);
+                        }
+                    }
+                }
+
                 //IMAGE FEED
                 $img_feed_name = 'feed_' . sha1($item->attachments->data[0]->media->image->src) . '.jpg';
                 $img_feed_path = $path_uploads . $img_feed_name;
+                $img_path_virtual = $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_name;
                 if(!file_exists($img_feed_path))
                 {
                     $content = file_get_contents($item->attachments->data[0]->media->image->src);
 
-                    $image = ImageResize::createFromString($content);
-                    $image->quality_jpg = 60;
-                    $image->resizeToBestFit(480, 480);
-                    $image->save($img_feed_path);
-                }
+                    $file_info = new \finfo(FILEINFO_MIME_TYPE);
+                    $mime_type = $file_info->buffer($content);
 
-                //VIDEO FEED
-                if($item->type == 'video')
-                {
-                    $video_feed_name = 'feed_' . sha1($item->source) . '.mp4';
-                    $video_feed_path = $path_uploads . $video_feed_name;
-                    if(!file_exists($video_feed_path))
+                    if($mime_type == 'image/png' || $mime_type == 'image/jpeg')
                     {
-                        $content = file_get_contents($item->source);
-                        file_put_contents($video_feed_path, $content);
+                        $image = ImageResize::createFromString($content);
+                        $image->quality_jpg = 60;
+                        $image->resizeToBestFit(480, 480);
+                        $image->save($img_feed_path);
+                    }
+                    else
+                    {
+                        $url = parse_url($item->attachments->data[0]->media->image->src);
+                        parse_str($url['query'], $query);
+
+                        if(isset($query['url']))
+                        {
+                            $content = file_get_contents($query['url']);
+
+                            $file_info = new \finfo(FILEINFO_MIME_TYPE);
+                            $mime_type = $file_info->buffer($content);
+
+                            if($mime_type == 'image/png' || $mime_type == 'image/jpeg')
+                            {
+                                $image = ImageResize::createFromString($content);
+                                $image->quality_jpg = 60;
+                                $image->resizeToBestFit(480, 480);
+                                $image->save($img_feed_path);
+                            }
+                            else
+                            {
+                                $img_path_virtual = 'file:' . $query['url'];
+                            }
+                        }
                     }
                 }
 
@@ -187,7 +226,7 @@ final class FacebookAction
                         'full' => $message
                     ),
                     'midia' => array(
-                       'image' => $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $img_feed_name,
+                       'image' => $img_path_virtual,
                        'video' => $item->type == 'video' ? $this->getPaths()['upload_path_virtual'] . $fb_data_fanpage->id . '/' . $video_feed_name : ''
                     ),
                     'engagement' => array(
@@ -224,7 +263,7 @@ final class FacebookAction
                 }
             }
 
-            FileSystemCache::store($key, $data, 7200);
+            FileSystemCache::store($key, $data, 180000);
         }
 
         $xmlBuilder = new XmlBuilder('root');

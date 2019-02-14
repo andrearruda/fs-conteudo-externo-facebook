@@ -39,7 +39,7 @@ final class FacebookAction
 
         $forceFileCached = isset($request->getQueryParams()['forceFileCached']) ? $request->getQueryParams()['forceFileCached'] : false;
 
-        FileSystemCache::$cacheDir = __DIR__ . '/../../../cache/tmp';
+        FileSystemCache::$cacheDir = __DIR__ . '/../../../data/cache/tmp';
         $key = FileSystemCache::generateCacheKey($args['user-id']);
         $data = FileSystemCache::retrieve($key);
 
